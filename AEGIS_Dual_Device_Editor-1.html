@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEGIS Auto Video Editor</title>
+<style>
+:root{--gold:#e5bd62;--bg:#080808;--panel:#141414;--line:#493b20;--muted:#aaa}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at top,#1c170b 0,#080808 42%);color:#f5f5f5;font-family:Arial,sans-serif;padding:16px}
+main{max-width:850px;margin:auto}
+h1{color:var(--gold);text-align:center;letter-spacing:2px;margin-bottom:6px}
+.sub{text-align:center;color:var(--muted);margin-top:0}
+.panel{background:var(--panel);border:1px solid var(--line);padding:17px;border-radius:15px;margin:16px 0;box-shadow:0 8px 30px #0005}
+h3{margin:0 0 12px;color:var(--gold)}
+button{display:block;width:100%;padding:14px;margin-top:12px;background:linear-gradient(120deg,#f1d78e,#c59a3e);color:#080808;border:0;border-radius:9px;font-weight:bold;font-size:15px;cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}
+input[type=file]{width:100%;color:#ddd;margin:8px 0}
+video{width:100%;max-height:390px;background:#000;border-radius:10px;margin-top:10px}
+#status{color:var(--gold);white-space:pre-wrap;line-height:1.6}
+.small{color:var(--muted);font-size:13px;line-height:1.6}
+.grid,.featurelist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.field{display:flex;flex-direction:column;gap:7px}
+.field label{font-size:13px;color:#eee}
+.field select,.field input[type=number]{width:100%;padding:11px;background:#090909;color:#fff;border:1px solid #594723;border-radius:8px}
+.toggle{display:flex;align-items:flex-start;gap:9px;padding:10px;background:#0b0b0b;border:1px solid #302819;border-radius:8px;font-size:13px;line-height:1.45}
+.toggle input{accent-color:var(--gold);margin-top:2px}
+.tag{font-size:10px;color:#f2cf79;border:1px solid #6d5727;border-radius:20px;padding:3px 7px;white-space:nowrap}
+.notice{border-left:3px solid var(--gold);padding:10px 12px;background:#201a0d;color:#e8d9b4;font-size:12px;line-height:1.6;border-radius:5px}
+a{display:block;margin-top:15px;padding:14px;text-align:center;border-radius:9px;background:#e5bd62;color:#080808;font-weight:bold;text-decoration:none}
+progress{height:12px;accent-color:var(--gold)}
+@media(max-width:560px){body{padding:10px}.grid,.featurelist{grid-template-columns:1fr}.panel{padding:13px}h1{font-size:24px}}
+</style>
+</head>
+<body>
+<main>
+<h1>AEGIS AUTO EDITOR</h1>
+<p class="sub">One-click video enhancement · Local browser processing</p>
+<section class="panel">
+  <h3>Choose your device profile</h3>
+  <div class="grid">
+    <div class="field">
+      <label for="deviceMode">Optimization mode</label>
+      <select id="deviceMode">
+        <option value="auto" selected>Auto-detect device</option>
+        <option value="mobile">Mobile · 6GB RAM / 128GB</option>
+        <option value="pc">Laptop · 8GB RAM / 256GB</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Detected browser device</label>
+      <div id="deviceInfo" class="notice">Detecting device profile…</div>
+    </div>
+  </div>
+  <p id="profileAdvice" class="small">Recommended settings will be adjusted for the selected profile.</p>
+</section>
+
+<section class="panel">
+  <h3>1. Upload your video</h3>
+  <input id="file" type="file" accept="video/*">
+  <p class="small">Choose a video from your phone or computer. For a first test, use a short 720p/1080p clip.</p>
+  <video id="preview" controls playsinline></video>
+</section>
+
+<section class="panel">
+  <h3>2. Auto-edit settings</h3>
+  <div class="featurelist">
+    <label class="toggle"><input id="enhance" type="checkbox" checked><span><b>Auto visual adjustment</b><br>Basic brightness, contrast and color boost</span></label>
+    <label class="toggle"><input id="denoise" type="checkbox" checked><span><b>Basic voice filtering</b><br>High-pass filter and compression; not AI denoising</span></label>
+    <label class="toggle"><input id="stabilize" type="checkbox"><span><b>Auto video stabilizer</b><br>Requires a motion-analysis engine</span><span class="tag">NOT ACTIVE</span></label>
+    <label class="toggle"><input id="autofocus" type="checkbox"><span><b>Auto focus / subject tracking</b><br>Requires an object-detection engine</span><span class="tag">NOT ACTIVE</span></label>
+    <label class="toggle"><input id="captions" type="checkbox"><span><b>English auto captions</b><br>Requires a speech-to-text model</span><span class="tag">NOT ACTIVE</span></label>
+    <label class="toggle"><input id="sfxToggle" type="checkbox"><span><b>Add sound effect / music</b><br>Mixes your selected audio file from the start</span></label>
+  </div>
+
+  <div style="margin-top:14px" class="grid">
+    <div class="field"><label for="resolution">Export resolution</label>
+      <select id="resolution">
+        <option value="source">Keep source resolution</option>
+        <option value="1080">Resize to 1080p (long edge 1920)</option>
+        <option value="4k">Resize to 4K (long edge 3840)</option>
+      </select>
+    </div>
+    <div class="field"><label for="fps">Frame-rate target</label>
+      <select id="fps">
+        <option value="24">24 FPS</option>
+        <option value="30" selected>30 FPS</option>
+        <option value="60">60 FPS</option>
+        <option value="120">120 FPS (device-dependent)</option>
+      </select>
+    </div>
+    <div class="field"><label for="bitrate">Bitrate target</label>
+      <select id="bitrate">
+        <option value="8">8 Mbps</option>
+        <option value="12" selected>12 Mbps</option>
+        <option value="20">20 Mbps</option>
+        <option value="30">30 Mbps</option>
+        <option value="50">50 Mbps</option>
+        <option value="100">100 Mbps</option>
+        <option value="200">200 Mbps (extreme)</option>
+      </select>
+    </div>
+    <div class="field"><label for="sfx">Optional sound effect / music file</label>
+      <input id="sfx" type="file" accept="audio/*">
+      <label for="sfxVolume">Sound volume: <span id="volText">25%</span></label>
+      <input id="sfxVolume" type="range" min="0" max="100" value="25" style="width:100%;accent-color:var(--gold)">
+    </div>
+  </div>
+
+  <p class="notice">Important: 4K here only resizes/upscales the frame; it cannot recreate missing detail. High FPS/bitrate settings are targets and may be limited by the browser. Export format is WebM. The AI-tagged options above are not implemented in this offline file.</p>
+  <button id="start" disabled>✨ AUTO EDIT VIDEO</button>
+  <p id="status">Waiting for video...</p>
+  <progress id="progress" value="0" max="100" style="width:100%"></progress>
+  <a id="download" hidden>⬇ Save Edited Video</a>
+</section>
+
+<section class="panel">
+  <h3>Feature status</h3>
+  <p class="small">This version provides separate Mobile and PC profiles, basic visual adjustment, output-size selection, frame-rate/bitrate targets, basic audio filtering, and optional sound-file mixing. It does not include true AI noise removal, motion-based stabilization, AI subject autofocus, automatic English captions, or automatic scene-aware sound selection.</p>
+</section>
+</main>
+
+<script>
+'use strict';
+
+const fileInput = document.getElementById('file');
+const preview = document.getElementById('preview');
+const startBtn = document.getElementById('start');
+const statusText = document.getElementById('status');
+const progress = document.getElementById('progress');
+const download = document.getElementById('download');
+
+let originalURL = null;
+let editedURL = null;
+let busy = false;
+
+
+const deviceMode = document.getElementById('deviceMode');
+const deviceInfo = document.getElementById('deviceInfo');
+const profileAdvice = document.getElementById('profileAdvice');
+const resolutionSelect = document.getElementById('resolution');
+const fpsSelect = document.getElementById('fps');
+const bitrateSelect = document.getElementById('bitrate');
+
+function detectDeviceProfile() {
+  const memory = Number(navigator.deviceMemory || 0);
+  const cores = Number(navigator.hardwareConcurrency || 0);
+  const mobileLike = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+  const chosen = deviceMode.value === 'auto' ? (mobileLike ? 'mobile' : 'pc') : deviceMode.value;
+  const memoryText = memory ? `${memory}GB RAM reported by browser` : 'RAM details hidden by browser';
+  const coreText = cores ? `${cores} logical CPU cores` : 'CPU details hidden by browser';
+
+  deviceInfo.textContent = `${chosen === 'mobile' ? 'Mobile profile' : 'Laptop/PC profile'} · ${memoryText} · ${coreText}`;
+
+  // Safe defaults for browser-only processing; PC settings are still conservative
+  // because hardware acceleration and codec support cannot be inferred from RAM alone.
+  if (chosen === 'mobile') {
+    if (resolutionSelect.value === '4k') resolutionSelect.value = '1080';
+    if (Number(fpsSelect.value) > 30) fpsSelect.value = '30';
+    if (Number(bitrateSelect.value) > 12) bitrateSelect.value = '12';
+    resolutionSelect.querySelector('option[value="4k"]').disabled = true;
+    fpsSelect.querySelector('option[value="60"]').disabled = true;
+    fpsSelect.querySelector('option[value="120"]').disabled = true;
+    bitrateSelect.querySelectorAll('option').forEach(o => { o.disabled = Number(o.value) > 12; });
+    profileAdvice.textContent = 'Mobile recommended: source/1080p, 30 FPS, 8–12 Mbps, and short clips. 4K/60/120 FPS options are disabled in Mobile mode to reduce crashes.';
+  } else {
+    resolutionSelect.querySelector('option[value="4k"]').disabled = false;
+    fpsSelect.querySelector('option[value="60"]').disabled = false;
+    fpsSelect.querySelector('option[value="120"]').disabled = false;
+    bitrateSelect.querySelectorAll('option').forEach(o => { o.disabled = false; });
+    if (Number(fpsSelect.value) > 60) fpsSelect.value = '60';
+    if (Number(bitrateSelect.value) > 30) bitrateSelect.value = '30';
+    profileAdvice.textContent = 'PC recommended: source/1080p, 30–60 FPS, 12–30 Mbps. Try 4K only with short clips first; actual performance depends on CPU, GPU, browser and codec support.';
+  }
+}
+deviceMode.addEventListener('change', detectDeviceProfile);
+detectDeviceProfile();
+
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files && fileInput.files[0];
+  if (!file) return;
+
+  if (!file.type.startsWith('video/')) {
+    statusText.textContent = 'Please choose a valid video file.';
+    startBtn.disabled = true;
+    return;
+  }
+
+  if (originalURL) URL.revokeObjectURL(originalURL);
+  if (editedURL) URL.revokeObjectURL(editedURL);
+
+  originalURL = URL.createObjectURL(file);
+  editedURL = null;
+  preview.src = originalURL;
+  preview.load();
+  startBtn.disabled = false;
+  download.hidden = true;
+  progress.value = 0;
+  statusText.textContent = 'Video ready. Check settings and press AUTO EDIT VIDEO.';
+});
+
+document.getElementById('sfxVolume').addEventListener('input', event => {
+  document.getElementById('volText').textContent = event.target.value + '%';
+});
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function waitForMetadata(video) {
+  return new Promise((resolve, reject) => {
+    if (video.readyState >= 1 && video.videoWidth > 0) {
+      resolve();
+      return;
+    }
+    const onLoaded = () => { cleanup(); resolve(); };
+    const onError = () => { cleanup(); reject(new Error('The browser could not read this video. Try another MP4 video.')); };
+    function cleanup() {
+      video.removeEventListener('loadedmetadata', onLoaded);
+      video.removeEventListener('error', onError);
+    }
+    video.addEventListener('loadedmetadata', onLoaded, { once: true });
+    video.addEventListener('error', onError, { once: true });
+    video.load();
+  });
+}
+
+function waitForSeek(video) {
+  return new Promise(resolve => {
+    if (video.currentTime === 0 && video.readyState >= 2) {
+      resolve();
+      return;
+    }
+    let finished = false;
+    const done = () => {
+      if (finished) return;
+      finished = true;
+      video.removeEventListener('seeked', done);
+      resolve();
+    };
+    video.addEventListener('seeked', done, { once: true });
+    video.currentTime = 0;
+    setTimeout(done, 1800);
+  });
+}
+
+startBtn.addEventListener('click', async () => {
+  if (busy || !originalURL) return;
+  detectDeviceProfile();
+
+  busy = true;
+  startBtn.disabled = true;
+  download.hidden = true;
+  progress.value = 0;
+
+  let processingVideo = null;
+  let audioContext = null;
+  let canvasStream = null;
+  let combinedStream = null;
+  let animationId = null;
+  let audioSource = null;
+  let sfxSource = null;
+  let recorder = null;
+  let chunks = [];
+
+  try {
+    statusText.textContent = 'Preparing video...';
+    processingVideo = document.createElement('video');
+    processingVideo.preload = 'auto';
+    processingVideo.playsInline = true;
+    processingVideo.src = originalURL;
+    await waitForMetadata(processingVideo);
+
+    const sourceWidth = processingVideo.videoWidth;
+    const sourceHeight = processingVideo.videoHeight;
+    const duration = processingVideo.duration;
+
+    if (!sourceWidth || !sourceHeight || !Number.isFinite(duration) || duration <= 0) {
+      throw new Error('Video dimensions or duration are invalid. Try a shorter MP4 video.');
+    }
+
+    const resolution = document.getElementById('resolution').value;
+    let scale = 1;
+    if (resolution === '1080') scale = 1920 / Math.max(sourceWidth, sourceHeight);
+    if (resolution === '4k') scale = 3840 / Math.max(sourceWidth, sourceHeight);
+    if (resolution === 'source') scale = 1;
+
+    const width = Math.max(2, Math.round(sourceWidth * scale / 2) * 2);
+    const height = Math.max(2, Math.round(sourceHeight * scale / 2) * 2);
+    const fps = Number(document.getElementById('fps').value);
+    const bitrate = Number(document.getElementById('bitrate').value) * 1000000;
+
+    // Prevent accidentally huge canvas allocations on mobile devices.
+    const activeProfile = deviceMode.value === 'auto'
+      ? (/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) ? 'mobile' : 'pc')
+      : deviceMode.value;
+    const maxPixels = activeProfile === 'mobile' ? 1920 * 1080 : 3840 * 2160;
+    if (width * height > maxPixels) {
+      throw new Error(activeProfile === 'mobile'
+        ? 'Mobile mode blocked this large output to reduce memory crashes. Choose source resolution or 1080p.'
+        : 'This output size is too large for this browser. Select source resolution or 1080p.');
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    if (!ctx) throw new Error('Canvas is not supported by this browser.');
+
+    const enhance = document.getElementById('enhance').checked;
+    let frameLoopStarted = false;
+
+    function drawFrame() {
+      if (!processingVideo || processingVideo.readyState < 2) {
+        animationId = requestAnimationFrame(drawFrame);
+        return;
+      }
+      ctx.filter = enhance ? 'brightness(1.05) contrast(1.08) saturate(1.10)' : 'none';
+      ctx.drawImage(processingVideo, 0, 0, width, height);
+      ctx.filter = 'none';
+      if (!processingVideo.paused && !processingVideo.ended) {
+        animationId = requestAnimationFrame(drawFrame);
+      }
+    }
+
+    if (!canvas.captureStream || !window.MediaRecorder || !window.MediaStream) {
+      throw new Error('This browser does not support video export. Update Chrome or try a computer.');
+    }
+
+    canvasStream = canvas.captureStream(fps);
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) throw new Error('Web Audio is not supported in this browser.');
+
+    audioContext = new AudioContextClass();
+    await audioContext.resume();
+
+    // A NEW hidden video element is used for each export. This prevents the
+    // "HTMLMediaElement already connected to a different MediaElementAudioSourceNode" error.
+    audioSource = audioContext.createMediaElementSource(processingVideo);
+
+    const highpass = audioContext.createBiquadFilter();
+    highpass.type = 'highpass';
+    highpass.frequency.value = document.getElementById('denoise').checked ? 100 : 20;
+
+    const compressor = audioContext.createDynamicsCompressor();
+    compressor.threshold.value = -24;
+    compressor.knee.value = 20;
+    compressor.ratio.value = document.getElementById('denoise').checked ? 3 : 1;
+    compressor.attack.value = 0.01;
+    compressor.release.value = 0.25;
+
+    const audioOutput = audioContext.createMediaStreamDestination();
+    audioSource.connect(highpass).connect(compressor);
+    compressor.connect(audioOutput);
+
+    const sfxFile = document.getElementById('sfx').files[0];
+    const useSfx = document.getElementById('sfxToggle').checked && !!sfxFile;
+
+    if (useSfx) {
+      const arrayBuffer = await sfxFile.arrayBuffer();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      sfxSource = audioContext.createBufferSource();
+      sfxSource.buffer = audioBuffer;
+      const gain = audioContext.createGain();
+      gain.gain.value = Number(document.getElementById('sfxVolume').value) / 100;
+      sfxSource.connect(gain).connect(audioOutput);
+    }
+
+    combinedStream = new MediaStream([
+      ...canvasStream.getVideoTracks(),
+      ...audioOutput.stream.getAudioTracks()
+    ]);
+
+    const mimeTypes = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm'
+    ];
+    const mimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type));
+    if (!mimeType) throw new Error('This browser cannot export WebM video.');
+
+    const recorderOptions = { mimeType: mimeType };
+    if ('videoBitsPerSecond' in MediaRecorder.prototype || MediaRecorder.length >= 0) {
+      recorderOptions.videoBitsPerSecond = bitrate;
+    }
+
+    recorder = new MediaRecorder(combinedStream, recorderOptions);
+    const recordingDone = new Promise((resolve, reject) => {
+      recorder.ondataavailable = event => {
+        if (event.data && event.data.size) chunks.push(event.data);
+      };
+      recorder.onstop = resolve;
+      recorder.onerror = () => reject(new Error('The browser stopped recording unexpectedly.'));
+    });
+
+    await waitForSeek(processingVideo);
+
+    // Draw one frame before recording so the canvas stream is not initially blank.
+    ctx.drawImage(processingVideo, 0, 0, width, height);
+    recorder.start(1000);
+
+    try {
+      await processingVideo.play();
+    } catch (playError) {
+      throw new Error('Video playback was blocked by the browser. Tap the page and try again.');
+    }
+
+    if (useSfx && sfxSource) {
+      try { sfxSource.start(0); } catch (_) {}
+    }
+
+    frameLoopStarted = true;
+    drawFrame();
+    statusText.textContent = 'Editing video... Keep this page open.';
+
+    while (!processingVideo.ended) {
+      progress.value = Math.min(95, Math.max(1, (processingVideo.currentTime / duration) * 95));
+      await wait(200);
+      if (processingVideo.paused && !processingVideo.ended) {
+        await processingVideo.play();
+      }
+    }
+
+    processingVideo.pause();
+    if (animationId) cancelAnimationFrame(animationId);
+    if (recorder.state !== 'inactive') recorder.stop();
+    await recordingDone;
+
+    const blob = new Blob(chunks, { type: mimeType });
+    if (!blob.size) throw new Error('The exported file is empty. Try a shorter video or lower settings.');
+
+    if (editedURL) URL.revokeObjectURL(editedURL);
+    editedURL = URL.createObjectURL(blob);
+    download.href = editedURL;
+    download.download = 'aegis-edited-video.webm';
+    download.textContent = '⬇ Save Edited Video';
+    download.hidden = false;
+
+    preview.src = editedURL;
+    preview.load();
+    progress.value = 100;
+
+    const pending = [];
+    if (document.getElementById('stabilize').checked) pending.push('stabilizer');
+    if (document.getElementById('autofocus').checked) pending.push('auto focus');
+    if (document.getElementById('captions').checked) pending.push('English captions');
+
+    statusText.textContent =
+      'Export complete. Tap Save Edited Video.' +
+      (pending.length ? '\nNot applied (AI engine is not included): ' + pending.join(', ') + '.' : '') +
+      '\nOutput target: ' + width + ' × ' + height + ', ' + fps + ' FPS, ' +
+      (bitrate / 1000000) + ' Mbps. Actual output may be limited by the browser.';
+  } catch (error) {
+    statusText.textContent = 'Could not complete editing: ' +
+      (error && error.message ? error.message : String(error)) +
+      '\nTry a short MP4 clip, source resolution, 30 FPS and 8–12 Mbps.';
+  } finally {
+    if (animationId) cancelAnimationFrame(animationId);
+    if (recorder && recorder.state !== 'inactive') {
+      try { recorder.stop(); } catch (_) {}
+    }
+    if (audioSource) {
+      try { audioSource.disconnect(); } catch (_) {}
+    }
+    if (sfxSource) {
+      try { sfxSource.stop(); } catch (_) {}
+      try { sfxSource.disconnect(); } catch (_) {}
+    }
+    if (audioContext && audioContext.state !== 'closed') {
+      try { await audioContext.close(); } catch (_) {}
+    }
+    if (combinedStream) combinedStream.getTracks().forEach(track => track.stop());
+    if (canvasStream) canvasStream.getTracks().forEach(track => track.stop());
+    if (processingVideo) {
+      try { processingVideo.pause(); } catch (_) {}
+      processingVideo.removeAttribute('src');
+      processingVideo.load();
+    }
+    busy = false;
+    startBtn.disabled = !fileInput.files.length;
+  }
+});
+</script>
+</body>
+</html>
